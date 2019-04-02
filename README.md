@@ -4,4 +4,10 @@ Scott McEachern
   
   
 ---
-Assignment for the UCSD Data Science bootcamp; using Python, SQLAlchemy, Pandas, Matplotlib and Flask.
+Assignment for the UCSD Data Science bootcamp; using Python, SQLAlchemy, Pandas, Matplotlib and Flask.  
+  
+#### Step 1: Climate Analysis and Exploration  
+Done within the climate_starter jupyter notebook.  
+  
+#### Step 2: Climate App
+Done with the app.py that is hosted within Flask.

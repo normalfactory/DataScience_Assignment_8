@@ -24,9 +24,10 @@ import numpy as np
 
 
 #-- Setup Database
+#  Added check same thread due to errors when deployed to Flask; accessing SQLite on different thread
 print("--> Setup Database")
 print("Preparing database connection")
-engine = create_engine("sqlite:///Resources/hawaii.sqlite")
+engine = create_engine("sqlite:///Resources/hawaii.sqlite", connect_args={'check_same_thread': False})
 
 #- Reflect the Tables
 Base = automap_base()
@@ -62,7 +63,9 @@ def home():
     availableRoutes = {
         "Precipitation": '/api/v1.0/precipitation',
         'Stations': 'api/v1.0/stations',
-        'tobs': '/api/v1.0/tobs'
+        'tobs': '/api/v1.0/tobs',
+        'temperatureRange': '/api/v1.0/<start>/<end>',
+        'temperatureFromStart': '/api/v1.0/<start>'
     }
     
 
@@ -209,3 +212,104 @@ def tobs():
 
 
     return jsonify(observations)
+
+
+@app.route('/api/v1.0/<start>/<end>')
+def temperatureRange(start, end):
+    ''' Determines min/max/average temperature for the date range provided
+
+    Accepts : start (str) date to start the query of records, format of "yyyy-mm-dd"
+              end (str) date to end the query of records, format of "yyyy-mm-dd"
+
+    Returns : JSON with attributes of avetemp, maxtemp, mintemp
+
+    '''
+
+    print(" ")
+    print("--> Temperature Range")
+
+    
+    #-- Get Start Date
+    print(f'Determine start date: {start}')
+
+    try:
+        startDate = datetime.strptime(start, '%Y-%m-%d')
+    except:
+        return jsonify({'error': f'Error encountered converting start date provided, not in correct format (yyyy-mm-dd). Value: {start}'}), 400
+
+    print(f'Converted parameter to start date: {startDate}')
+
+
+    #-- Get End Date
+    print(f'Determine end date: {end}')
+
+    try:
+        endDate = datetime.strptime(end, '%Y-%m-%d')
+    except:
+        return jsonify({'error': f'Error encountered converting end date provided, not in correct format (yyyy-mm-dd). Value: {end}'}), 400
+
+    print(f'Converted parameter to end date: {endDate}')
+
+
+    #-- Calculate Temperature Info
+    return jsonify(calculateTemperateInfo(startDate, endDate))
+
+
+@app.route('/api/v1.0/<start>')
+def temperatureFromStart(start):
+    ''' Determines min/max/average temperature that are greater than and equal to the start date provided
+
+    Accepts : start (str) date to start the query of records, format of "yyyy-mm-dd"
+
+    Return : JSON with attributes of avetemp, maxtemp, mintemp
+    '''
+
+    print(" ")
+    print("--> Temperature From Start")
+
+
+    #-- Get Start Date
+    print(f'Determine start date: {start}')
+
+    try:
+        startDate = datetime.strptime(start, '%Y-%m-%d')
+    except:
+        return jsonify({'error': f'Error encountered converting start date provided, not in correct format (yyyy-mm-dd). Value: {start}'}), 400
+
+    print(f'Converted parameter to start date: {startDate}')
+
+
+    #-- Determine end date in dataset
+    endDateString = session.query(func.max(Measurement.date)).scalar()
+
+    endDate = datetime.strptime(endDateString, '%Y-%m-%d')
+
+    print(f"Determine end date of dataset; {endDate}")
+
+
+    #-- Calculate Temperature Info
+    return jsonify(calculateTemperateInfo(startDate, endDate))
+
+
+def calculateTemperateInfo(startDate, endDate):
+    ''' Determines temperation information based on the date range provided
+
+    Accepts : startDate (date) begin of date range
+              endDate (date) end of date range
+
+    Returns : dictionary; mintemp, avetemp, maxtemp
+    '''
+
+    #- Query Database
+    results = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
+        filter(Measurement.date.between(startDate, endDate)).all()
+
+    return {
+        'mintemp': results[0][0],
+        'avetemp': results[0][1],
+        'maxtemp': results[0][2]
+    }
+
+
+
+    
